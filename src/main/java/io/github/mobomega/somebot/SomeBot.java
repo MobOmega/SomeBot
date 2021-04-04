@@ -1,39 +1,59 @@
 package io.github.mobomega.somebot;
 
-import discord4j.core.DiscordClientBuilder;
-import discord4j.core.GatewayDiscordClient;
-import discord4j.core.event.domain.lifecycle.ReadyEvent;
-import discord4j.core.event.domain.message.MessageCreateEvent;
-import discord4j.core.object.entity.Message;
-import discord4j.core.object.entity.User;
+import net.dv8tion.jda.api.AccountType;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.*;
+import net.dv8tion.jda.api.utils.*;
 
-public class SomeBot {
-    public static char prefix = '%';
-    public static void main(String[] args) {
-        GatewayDiscordClient client = DiscordClientBuilder.create(args[0])
-                .build()
-                .login()
-                .block();
+import javax.security.auth.login.LoginException;
+import java.util.logging.Logger;
+import java.util.Random;
 
-        client.getEventDispatcher().on(ReadyEvent.class)
-                .subscribe(event -> {
-                    final User self = event.getSelf();
-                    System.out.println(String.format(
-                            "Logged in as %s#%s", self.getUsername(), self.getDiscriminator()
-                    ));
-                });
+public class SomeBot extends ListenerAdapter {
 
-        client.getEventDispatcher().on(MessageCreateEvent.class)
-                .map(MessageCreateEvent::getMessage)
-                .filter(message -> message.getAuthor().map(user -> !user.isBot()).orElse(false))
-                .filter(message -> message.getContent().equalsIgnoreCase(prefix + "ping"))
-                .flatMap(Message::getChannel)
-                .flatMap(channel -> channel.createMessage("Pong!"))
-                .subscribe();
+    public static String prefix = "%";
+    Random random = new Random();
 
+    public static void main(String[] args) throws LoginException {
+        JDABuilder builder = JDABuilder.createDefault(args[0]);
 
-        client.onDisconnect().block();
+        // Enable the bulk delete event
+        builder.setBulkDeleteSplittingEnabled(false);
+        // Set activity (like "playing Something")
+        builder.setActivity(Activity.playing("with emotions"));
 
+        builder.addEventListeners(new SomeBot());
+
+        builder.enableIntents(GatewayIntent.GUILD_MEMBERS);
+
+        builder.setMemberCachePolicy(MemberCachePolicy.ALL);
+
+        builder.build();
+        System.out.println("Logged in as SomeBot#2855");
+    }
+
+    @Override
+    public void onMessageReceived(MessageReceivedEvent event) {
+        System.out.println("Message received:\n" +
+                event.getAuthor().getName() + ": " +
+                event.getMessage().getContentDisplay()
+        );
+        System.out.println(event.getAuthor().getId());
+        System.out.println(event.getGuild().loadMembers());
+        System.out.println(event.getGuild().getMembers());
+        System.out.println("---");
+        String[] command = event.getMessage().getContentRaw().split(" ");
+        if (command[0].startsWith(prefix)) {
+            if (command[0].substring(1).equalsIgnoreCase("somebody")) {
+                int rand = random.nextInt(event.getGuild().getMembers().size());
+                event.getChannel().sendMessage("<@" + event.getGuild().getMembers().get(rand).getId() + ">").queue();
+            }
+        }
 
     }
 }
